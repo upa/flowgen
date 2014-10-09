@@ -119,6 +119,7 @@ usage (char * progname)
 		"\t" "-n : Number of flows\n"
 		"\t" "-t : Type of flow distribution. {same|random|power}\n"
 		"\t" "-l : Packet size\n"
+		"\t" "-f : daemon mode\n"
 		"\n",
 		progname);
 
@@ -350,13 +351,13 @@ flowgen_start (void)
 int
 main (int argc, char ** argv)
 {
-	int ch, ret;
+	int ch, ret, f_flag = 0;
 	char * progname = argv[0];
 
 
 	flowgen_default_value_init ();
 
-	while ((ch = getopt (argc, argv, "s:d:n:t:l:")) != -1) {
+	while ((ch = getopt (argc, argv, "s:d:n:t:l:f")) != -1) {
 
 		switch (ch) {
 		case 's' :
@@ -406,11 +407,17 @@ main (int argc, char ** argv)
 			}
 			flowgen.pkt_len = ret;
 			break;
+		case 'f' :
+			f_flag = 1;
+			break;
 		default :
 			usage (progname);
 			exit (1);
 		}
 	}
+
+	if (f_flag)
+		daemon (0, 0);
 
 	
 	flowgen_socket_init ();
