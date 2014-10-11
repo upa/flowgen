@@ -3,15 +3,15 @@ flowgen (Flow Generator)
 
 ## Description
 
-flowgen is simple graffic generator to xmit multiple UDP flows with 
+flowgen is simple traffic generator to xmit multiple UDP flows with 
 some throughput ratio distributions of flows.
 
-flowgen support 3 traffic distribtuion patterns.
+flowgen support 3 distribtuion patterns.
 + same : Rate of throughput of each flow are same.
 + random : Rate of throughput of each flow are random.
 + power : Rate of throughput of each flow follows power-law.
 
-flowgen uses Linux raw socket to transmites UDP packets. It really slow.
+flowgen uses Linux raw socket to transmit UDP packets. It is really slow.
 
 ## Compile
 
@@ -43,7 +43,7 @@ make DCE=yes is defined for ns-3-dce use.
 
 
 ## Todo
-	- using netmap I/O.
++ using netmap I/O.
 
 
 ## Contact
