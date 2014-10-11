@@ -23,6 +23,12 @@
 
 #define POWERLAW(x)  (10 * x * x * x + x * 2) /* 10x^3 + x^2 */
 
+#ifdef __linux__
+#define uh_sport source
+#define uh_dport dest
+#define uh_ulen len
+#define uh_sum check
+#endif /* linux */
 
 
 #define DSTPORT		49152
