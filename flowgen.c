@@ -27,6 +27,7 @@
 
 #define DSTPORT		49152
 #define SRCPORT_START	49153
+#define SRCPORT_MAX	65534
 #define FLOW_MAX	256
 #define PORTLISTLEN	4096
 #define PACKETMAXLEN	8192
@@ -65,6 +66,7 @@ struct flowgen {
 
 	int	port_list_len;		/* num of filled port list 	*/
 	int	port_list[PORTLISTLEN];	/* srcport list  		*/
+	int	port_candidates[PORTLISTLEN];
 
 	int	flow_dist;		/* type of flow distribution */
 	int	flow_num;		/* number of flows	*/
@@ -209,14 +211,40 @@ flowgen_packet_init (void)
 };
 
 void
+flowgen_port_candidates_init (void)
+{
+	int n, i, candidate;
+	
+	srand ((unsigned) time (NULL));	
+
+	for (n = 0; n < flowgen.flow_num; n++) {
+		while (1) {
+			candidate = SRCPORT_START +
+				rand () % (SRCPORT_MAX - SRCPORT_START);
+			for (i = 0; i < n; i++) {
+				if (flowgen.port_candidates[i] == candidate)
+					break;
+			}
+			if (i == n)
+				break;
+		}
+		flowgen.port_candidates[n] = candidate;
+		D ("Flow %2d is %d", n, candidate);
+	}
+
+	return;
+}
+
+
+void
 flow_dist_init_same (void)
 {
 	/* throughput of each flow is same */
 
-	int n, port = SRCPORT_START;
+	int n, port = 0;
 
 	for (n = 0; n < flowgen.flow_num; n++) {
-		flowgen.port_list[n] = port++;
+		flowgen.port_list[n] = flowgen.port_candidates[port++];
 	}
 
 	flowgen.port_list_len = n;
@@ -229,7 +257,7 @@ flow_dist_init_random (void)
 {
 	/* The ratio of flows is random */
 
-	int n, i, plen = 0, port = SRCPORT_START;
+	int n, i, plen = 0, port = 0;
 	float sum = 0;
 
 	struct flow {
@@ -260,7 +288,8 @@ flow_dist_init_random (void)
 		psum += flows[n].ratio / PORTLISTLEN * 100;
 
 		for (i = 0; i < (int)flows[n].ratio; i++) {
-			flowgen.port_list[plen++] = port;
+			flowgen.port_list[plen++] =
+				flowgen.port_candidates[port];
 		}
 		port++;
 	}
@@ -279,7 +308,7 @@ flow_dist_init_power (void)
 
 	/* The ratio of lows follows Power Law */
 
-	int n, i, plen = 0, port = SRCPORT_START;
+	int n, i, plen = 0, port = 0;
 	float sum = 0;
 
 	struct flow {
@@ -310,7 +339,8 @@ flow_dist_init_power (void)
 		psum += flows[n].ratio / PORTLISTLEN * 100;
 
 		for (i = 0; i < (int)flows[n].ratio; i++) {
-			flowgen.port_list[plen++] = port;
+			flowgen.port_list[plen++] = 
+				flowgen.port_candidates[port];
 		}
 		port++;
 	}
@@ -419,9 +449,10 @@ main (int argc, char ** argv)
 	if (f_flag)
 		daemon (0, 0);
 
-	
+
 	flowgen_socket_init ();
 	flowgen_packet_init ();
+	flowgen_port_candidates_init ();
 	flowgen_flow_dist_init[flowgen.flow_dist] ();
 
 	flowgen_start ();
