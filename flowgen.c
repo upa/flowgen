@@ -122,13 +122,15 @@ wrapsum (u_int32_t sum)
 void
 usage (char * progname)
 {
-	printf ("usage: %s"
+	printf ("\n"
+		"usage: %s"
 		"\n"
-		"\t" "-s : Source IP address\n"
-		"\t" "-d : Destination IP address\n"
-		"\t" "-n : Number of flows\n"
-		"\t" "-t : Type of flow distribution. {same|random|power}\n"
-		"\t" "-l : Packet size\n"
+		"\t" "-s : Source IP address (default 10.1.0.10)\n"
+		"\t" "-d : Destination IP address (default 10.2.0.10)\n"
+		"\t" "-n : Number of flows (default 10)\n"
+		"\t" "-t : Type of flow distribution {same|random|power}"
+		" (default same)\n"
+		"\t" "-l : Packet size (defualt 1024)\n"
 		"\t" "-f : daemon mode\n"
 		"\t" "-r : Randomize source ports of each flows\n"
 		"\n",
@@ -428,8 +430,8 @@ main (int argc, char ** argv)
 		case 'n' :
 			ret = atoi (optarg);
 			if (ret < 1 || FLOW_MAX - 1 < ret) {
-				D ("flow num is larger than 0 "
-				    " and smaller than %d", FLOW_MAX);
+				D ("flow num must be larger than 0 "
+				   " and smaller than %d", FLOW_MAX);
 				exit (1);
 			}
 			flowgen.flow_num = ret;
@@ -450,7 +452,7 @@ main (int argc, char ** argv)
 		case 'l' :
 			ret = atoi (optarg);
 			if (ret < 64 || PACKETMAXLEN < ret) {
-				D ("packet len is larger than 64 "
+				D ("packet len muse be larger than 64 "
 				    " and smaller than %d", PACKETMAXLEN + 1);
 				exit (1);
 			}
