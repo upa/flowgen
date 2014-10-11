@@ -1,7 +1,7 @@
 flowgen (Flow Generator)
 ========================
 
-# flowgen
+## Description
 
 flowgen is simple graffic generator to xmit multiple UDP flows with 
 some throughput ratio distributions of flows.
