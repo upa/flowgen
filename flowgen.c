@@ -79,6 +79,8 @@ struct flowgen {
 
 	int	pkt_len;		/* packet length */
 	char 	pkt[PACKETMAXLEN];	/* test packet */
+
+	int	randomized;		/* randomize source port ? */
 } flowgen;
 
 
@@ -128,6 +130,7 @@ usage (char * progname)
 		"\t" "-t : Type of flow distribution. {same|random|power}\n"
 		"\t" "-l : Packet size\n"
 		"\t" "-f : daemon mode\n"
+		"\t" "-r : Randomize source ports of each flows\n"
 		"\n",
 		progname);
 
@@ -223,6 +226,16 @@ flowgen_port_candidates_init (void)
 	
 	srand ((unsigned) time (NULL));	
 
+	if (!flowgen.randomized) {
+		for (n = 0; n < flowgen.flow_num; n++) {
+			flowgen.port_candidates[n] = SRCPORT_START + n;
+			D ("Flow %2d is src port %d", n,
+			   flowgen.port_candidates[n]);
+		}
+		return;
+	}
+
+	/* randomize udp source port  */
 	for (n = 0; n < flowgen.flow_num; n++) {
 		while (1) {
 			candidate = SRCPORT_START +
@@ -235,7 +248,7 @@ flowgen_port_candidates_init (void)
 				break;
 		}
 		flowgen.port_candidates[n] = candidate;
-		D ("Flow %2d is %d", n, candidate);
+		D ("Flow %2d is src port %d", n, candidate);
 	}
 
 	return;
@@ -393,7 +406,7 @@ main (int argc, char ** argv)
 
 	flowgen_default_value_init ();
 
-	while ((ch = getopt (argc, argv, "s:d:n:t:l:f")) != -1) {
+	while ((ch = getopt (argc, argv, "s:d:n:t:l:fhr")) != -1) {
 
 		switch (ch) {
 		case 's' :
@@ -446,6 +459,10 @@ main (int argc, char ** argv)
 		case 'f' :
 			f_flag = 1;
 			break;
+		case 'r' :
+			flowgen.randomized = 1;
+			break;
+		case 'h' :
 		default :
 			usage (progname);
 			exit (1);
