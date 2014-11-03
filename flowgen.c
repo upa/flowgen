@@ -81,6 +81,9 @@ struct flowgen {
 	char 	pkt[PACKETMAXLEN];	/* test packet */
 
 	int	randomized;		/* randomize source port ? */
+
+	int	count;			/* number of xmit packets */
+
 } flowgen;
 
 
@@ -133,6 +136,7 @@ usage (char * progname)
 		"\t" "-l : Packet size (defualt 1024)\n"
 		"\t" "-f : daemon mode\n"
 		"\t" "-r : Randomize source ports of each flows\n"
+		"\t" "-c : Number of xmit packets (defualt unlimited)\n"
 		"\n",
 		progname);
 
@@ -153,6 +157,8 @@ flowgen_default_value_init (void)
 	flowgen.flow_num = DEFAULT_FLOWNUM;
 
 	flowgen.pkt_len = DEFAULT_PACKETLEN;
+
+	flowgen.count = 0;
 
 	return;
 }
@@ -382,6 +388,10 @@ flowgen_start (void)
 
 	udp = (struct udphdr *) (flowgen.pkt + sizeof (struct ip));
 
+	if (flowgen.count) {
+		D ("xmit %d packets", flowgen.count);
+	}
+
 	while (1) {
 		for (n = 0; n < flowgen.port_list_len; n++) {
 			udp->uh_sport = htons (flowgen.port_list[n]);
@@ -389,6 +399,13 @@ flowgen_start (void)
 				      flowgen.pkt_len, 0,
 				      (struct sockaddr *) &flowgen.saddr_in,
 				      sizeof (struct sockaddr_in));
+
+			if (flowgen.count) {
+				flowgen.count--;
+				if (flowgen.count == 0) 
+					return;
+			}
+
 			if (ret < 0) {
 				perror ("send");
 				break;
@@ -408,7 +425,7 @@ main (int argc, char ** argv)
 
 	flowgen_default_value_init ();
 
-	while ((ch = getopt (argc, argv, "s:d:n:t:l:fhr")) != -1) {
+	while ((ch = getopt (argc, argv, "s:d:n:t:l:c:fhr")) != -1) {
 
 		switch (ch) {
 		case 's' :
@@ -457,6 +474,9 @@ main (int argc, char ** argv)
 				exit (1);
 			}
 			flowgen.pkt_len = ret;
+			break;
+		case 'c' :
+			flowgen.count = atoi (optarg);
 			break;
 		case 'f' :
 			f_flag = 1;
