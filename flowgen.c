@@ -82,6 +82,7 @@ struct flowgen {
 	int	pkt_len;		/* packet length */
 	char 	pkt[PACKETMAXLEN];	/* test packet */
 
+	int	interval;		/* xmit interval */
 	int	recv_mode;		/* recv mode */
 	int	recv_mode_only;		/* recv mode only */
 	int	randomized;		/* randomize source port ? */
@@ -423,6 +424,9 @@ flowgen_start (void)
 				perror ("send");
 				break;
 			}
+
+			if (flowgen.interval)
+				sleep (flowgen.interval);
 		}
 	}
 
@@ -458,9 +462,6 @@ flowgen_receive_thread (void * param)
 
 	cnt = 0;
 
-	if (!flowgen.recv_mode_only)
-		pthread_detach (pthread_self ());
-
 	while (1) {
 		ret = recv (sock, buf, sizeof (buf), 0);
 		D ("%d: receive %d bytes packet", ++cnt, ret);
@@ -479,7 +480,7 @@ main (int argc, char ** argv)
 
 	flowgen_default_value_init ();
 
-	while ((ch = getopt (argc, argv, "s:d:n:t:l:c:ewfhrv")) != -1) {
+	while ((ch = getopt (argc, argv, "s:d:n:t:l:c:i:ewfhrv")) != -1) {
 
 		switch (ch) {
 		case 's' :
@@ -529,10 +530,13 @@ main (int argc, char ** argv)
 			}
 			flowgen.pkt_len = ret;
 			break;
-		case 'w' :
-			flowgen.recv_mode = 1;
+		case 'i' :
+			flowgen.interval = atoi (optarg);
+			break;
 		case 'e' :
 			flowgen.recv_mode_only = 1;
+		case 'w' :
+			flowgen.recv_mode = 1;
 			break;
 		case 'c' :
 			flowgen.count = atoi (optarg);
@@ -556,8 +560,12 @@ main (int argc, char ** argv)
 	if (f_flag)
 		daemon (0, 0);
 
+	if (flowgen.recv_mode_only) {
+		flowgen_receive_thread (NULL);
+	}
 	if (flowgen.recv_mode) {
 		pthread_create (&tid, NULL, flowgen_receive_thread, NULL);
+		pthread_detach (tid);
 	}
 
 	flowgen_socket_init ();
