@@ -13,6 +13,7 @@
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #define D(_fmt, ...)                                            \
         do {                                                    \
@@ -65,6 +66,7 @@ void (* flowgen_flow_dist_init[]) (void) = {
 struct flowgen {
 
 	int socket;			/* raw socket		*/
+	int rsocket;			/* receive socket 	*/
 	struct sockaddr_in saddr_in;
 
 	struct in_addr saddr;		/* source address	*/
@@ -80,12 +82,15 @@ struct flowgen {
 	int	pkt_len;		/* packet length */
 	char 	pkt[PACKETMAXLEN];	/* test packet */
 
+	int	recv_mode;		/* recv mode */
+	int	recv_mode_only;		/* recv mode only */
 	int	randomized;		/* randomize source port ? */
-
 	int	count;			/* number of xmit packets */
+	int	verbose;		/* verbose mode */
 
 } flowgen;
 
+#define IS_V() flowgen.verbose
 
 /* from netmap pkt-gen.c */
 static uint16_t
@@ -137,6 +142,8 @@ usage (char * progname)
 		"\t" "-f : daemon mode\n"
 		"\t" "-r : Randomize source ports of each flows\n"
 		"\t" "-c : Number of xmit packets (defualt unlimited)\n"
+		"\t" "-e : Receive mode\n"
+		"\t" "-w : Run WITH receive thread\n"
 		"\n",
 		progname);
 
@@ -182,6 +189,9 @@ flowgen_socket_init (void)
 		exit (1);
 	}
 		
+	if (IS_V()) 
+		D ("raw socket is %d", sock);
+
 	flowgen.socket = sock;
 
 	return;
@@ -400,6 +410,9 @@ flowgen_start (void)
 				      (struct sockaddr *) &flowgen.saddr_in,
 				      sizeof (struct sockaddr_in));
 
+			if (IS_V()) 
+				D ("send %d bytes", ret);
+
 			if (flowgen.count) {
 				flowgen.count--;
 				if (flowgen.count == 0) 
@@ -416,16 +429,57 @@ flowgen_start (void)
 	return;
 }
 
+void *
+flowgen_receive_thread (void * param)
+{
+	int sock, ret, cnt;
+	char buf[2048];
+	struct sockaddr_in saddr_in;
+
+	if ((sock = socket (AF_INET, SOCK_DGRAM, 0)) < 0) {
+		D ("failed to create receive UDP socket");
+		perror ("socket");
+		exit (1);
+	}
+	
+	if (IS_V())
+		D ("receive UDP socket is %d", sock);
+
+	memset (&saddr_in, 0, sizeof (saddr_in));
+	saddr_in.sin_family = AF_INET;
+	saddr_in.sin_port = htons (DSTPORT);
+	saddr_in.sin_addr.s_addr = INADDR_ANY;
+	
+	if (bind (sock, (struct sockaddr *)&saddr_in, sizeof (saddr_in)) < 0) {
+		D ("failed to bind receive socket");
+		perror ("bind");
+		exit (1);
+	}
+
+	cnt = 0;
+
+	if (!flowgen.recv_mode_only)
+		pthread_detach (pthread_self ());
+
+	while (1) {
+		ret = recv (sock, buf, sizeof (buf), 0);
+		D ("%d: receive %d bytes packet", ++cnt, ret);
+	}
+
+	return NULL;
+}
+
 int
 main (int argc, char ** argv)
 {
 	int ch, ret, f_flag = 0;
 	char * progname = argv[0];
+	pthread_t tid;
 
 
 	flowgen_default_value_init ();
 
-	while ((ch = getopt (argc, argv, "s:d:n:t:l:c:fhr")) != -1) {
+	while ((ch = getopt (argc, argv, "s:d:n:t:l:c:ewfhrv")) != -1) {
 
 		switch (ch) {
 		case 's' :
@@ -475,6 +529,11 @@ main (int argc, char ** argv)
 			}
 			flowgen.pkt_len = ret;
 			break;
+		case 'w' :
+			flowgen.recv_mode = 1;
+		case 'e' :
+			flowgen.recv_mode_only = 1;
+			break;
 		case 'c' :
 			flowgen.count = atoi (optarg);
 			break;
@@ -483,6 +542,9 @@ main (int argc, char ** argv)
 			break;
 		case 'r' :
 			flowgen.randomized = 1;
+			break;
+		case 'v' :
+			flowgen.verbose = 1;
 			break;
 		case 'h' :
 		default :
@@ -494,11 +556,15 @@ main (int argc, char ** argv)
 	if (f_flag)
 		daemon (0, 0);
 
+	if (flowgen.recv_mode) {
+		pthread_create (&tid, NULL, flowgen_receive_thread, NULL);
+	}
 
 	flowgen_socket_init ();
 	flowgen_packet_init ();
 	flowgen_port_candidates_init ();
 	flowgen_flow_dist_init[flowgen.flow_dist] ();
+
 
 	flowgen_start ();
 

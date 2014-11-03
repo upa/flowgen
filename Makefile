@@ -14,7 +14,7 @@ dce_pie_no=
 all: flowgen
 
 flowgen: flowgen.o
-	$(CC) $(dce_pie_$(DCE)) flowgen.o -o $@
+	$(CC) $(dce_pie_$(DCE)) flowgen.o -o $@ -lpthread
 
 clean:
 	rm *.o

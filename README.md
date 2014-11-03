@@ -33,7 +33,9 @@ make DCE=yes is defined for ns-3-dce use.
 	 	-l : Packet size (defualt 1024)
 	 	-f : daemon mode
 	 	-r : Randomize source ports of each flows
-
+		-c : Number of xmit packets (defualt unlimited)
+		-e : Receive mode
+		-w : Run WITH receive thread
 
 	 % sudo ./flowgen
 	 
