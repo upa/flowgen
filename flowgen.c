@@ -147,6 +147,7 @@ usage (char * progname)
 		"\t" "-t : Type of flow distribution {same|random|power}"
 		" (default same)\n"
 		"\t" "-l : Packet size (defualt 1024)\n"
+		"\t" "-m : Seed of srand\n"
 		"\t" "-f : daemon mode\n"
 		"\t" "-r : Randomize source ports of each flows\n"
 		"\t" "-c : Number of xmit packets (defualt unlimited)\n"
@@ -277,8 +278,6 @@ flowgen_port_candidates_init (void)
 {
 	int n, i, candidate;
 	
-	srand ((unsigned) time (NULL));	
-
 	if (!flowgen.randomized) {
 		for (n = 0; n < flowgen.flow_num; n++) {
 			flowgen.port_candidates[n] = SRCPORT_START + n;
@@ -338,8 +337,6 @@ flow_dist_init_random (void)
 	} flows[FLOW_MAX];
 		
 
-	srand ((unsigned) time (NULL));
-
 	for (n = 0; n < flowgen.flow_num; n++) {
 		flows[n].throughput = rand () % FLOW_MAX;
 		sum += flows[n].throughput;
@@ -388,8 +385,6 @@ flow_dist_init_power (void)
 		float ratio;
 	} flows[FLOW_MAX];
 		
-
-	srand ((unsigned) time (NULL));
 
 	for (n = 0; n < flowgen.flow_num; n++) {
 		flows[n].throughput = POWERLAW (n);
@@ -588,13 +583,13 @@ int
 main (int argc, char ** argv)
 {
 	int ch, ret, f_flag = 0;
+	unsigned long random_seed = 0;
 	char * progname = argv[0];
 	pthread_t tid;
 
-
 	flowgen_default_value_init ();
 
-	while ((ch = getopt (argc, argv, "s:d:n:t:l:c:i:ewfhruv")) != -1) {
+	while ((ch = getopt (argc, argv, "s:d:n:t:l:c:i:m:ewfhruv")) != -1) {
 
 		switch (ch) {
 		case 's' :
@@ -644,6 +639,10 @@ main (int argc, char ** argv)
 			}
 			flowgen.pkt_len = ret;
 			break;
+		case 'm' :
+			sscanf (optarg, "%lu", &random_seed);
+			D ("Random seed is %lu", random_seed);
+			break;
 		case 'i' :
 			flowgen.interval = atoi (optarg);
 			break;
@@ -673,6 +672,11 @@ main (int argc, char ** argv)
 			exit (1);
 		}
 	}
+
+	if (random_seed)
+		srand (random_seed);
+	else 
+		srand ((unsigned) time (NULL));
 
 	if (f_flag)
 		daemon (0, 0);
