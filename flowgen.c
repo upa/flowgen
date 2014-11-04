@@ -577,7 +577,8 @@ flowgen_receive_thread (void * param)
 		}
 
 		if (IS_V())
-			D ("%d: receive %d bytes packet", ++cnt, ret);
+			D ("%d: [%lu] receive %d bytes packet", 
+			   ++cnt, time (NULL), ret);
 	}
 
 	return NULL;
