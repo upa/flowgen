@@ -152,6 +152,7 @@ usage (char * progname)
 		"\t" "-r : Randomize source ports of each flows\n"
 		"\t" "-c : Number of xmit packets (defualt unlimited)\n"
 		"\t" "-e : Receive mode\n"
+		"\t" "-u : using UDP socket instead of raw socket\n"
 		"\t" "-w : Run WITH receive thread\n"
 		"\n",
 		progname);
