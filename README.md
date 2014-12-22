@@ -3,13 +3,14 @@ flowgen (Flow Generator)
 
 ## Description
 
-flowgen is simple traffic generator to xmit multiple UDP flows with 
-some throughput ratio distributions of flows.
+flowgen is simple traffic generator for multiple UDP flows with 
+some throughput distribution patterns.
 
-flowgen support 3 distribtuion patterns.
-+ same : Rate of throughput of each flow are same.
-+ random : Rate of throughput of each flow are random.
-+ power : Rate of throughput of each flow follows power-law.
+flowgen support 3 flow distribtuion patterns.
++ Same : the ratio of bandwidth for each flow is uniform.
++ Random : the ratio of bandwidth for each flow is random.
++ Power-law : the ratio of bandwidth for each flow follows power-law.
+
 
 flowgen uses Linux raw socket to transmit UDP packets. It is really slow.
 
