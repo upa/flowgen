@@ -5,7 +5,7 @@ CC=gcc -g -Wall
 DCE?=no
 dce_pic_yes=-fPIC
 dce_pic_no=
-dce_pie_yes=-pie
+dce_pie_yes=-pie -rdynamic
 dce_pie_no=
 
 
