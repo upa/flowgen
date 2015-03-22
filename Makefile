@@ -16,11 +16,15 @@ connect_no=
 .c.o:
 	$(CC) $(dce_pic_$(DCE)) $(connect_$(CONNECT)) -DPOLL -c $< -o $@
 
-all: flowgen
+all: flowgen tcpgen
 
 flowgen: flowgen.o Makefile
 	$(CC) $(dce_pie_$(DCE)) flowgen.o -o $@ -lpthread
 
+tcpgen: tcpgen.o Makefile
+	$(CC) $(dce_pie_$(DCE)) tcpgen.o -o $@ -lpthread
+
 clean:
 	rm *.o
 	rm flowgen
+	rm tcpgen

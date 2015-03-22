@@ -1,3 +1,5 @@
 *.o
 *.out
+a.out*
 flowgen
+tcpgen
