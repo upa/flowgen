@@ -24,6 +24,10 @@
 #define MAX_FLOWNUM	128
 #define SOCKLISTLEN	1000
 
+#define SRCPORT_MIN	5003
+#define SRCPORT_MAX	65000
+#define RANDOM_PORT() (rand () % (SRCPORT_MAX - SRCPORT_MIN) + SRCPORT_MIN)
+
 #define POWERLAW(x)	(10 * x * x * x + x * 2) /* 10x^3 + x^2 */
 
 enum {
@@ -55,6 +59,7 @@ struct tcpgen {
 
 	int count;	/* number of xmit packets */
 	int interval;	/* xmit interval */
+	int randomized;	/* randomise source port */
 	int verbose;	/* verbose mode */
 } tcpgen;
 
@@ -72,6 +77,7 @@ usage (void)
 		"\t -x : number of xmit packet (default unlimited)\n"
 		"\t -i : xmit interval (usec)\n"
 		"\t -l : data length (tcp payload)\n"
+		"\t -r : randomize source port\n"
 		"\t -m : digit for seed of srand\n"
 		"\n"
 		);
@@ -80,9 +86,9 @@ usage (void)
 }
 
 int
-tcp_client_socket (struct in_addr dst, int port)
+tcp_client_socket (struct in_addr dst, int dstport, int srcport)
 {
-	int sock, ret;
+	int sock, ret, val = 1;
 	struct sockaddr_in saddr;
 
 	sock = socket (AF_INET, SOCK_STREAM, 0);
@@ -91,9 +97,29 @@ tcp_client_socket (struct in_addr dst, int port)
 		return 0;
 	}
 
+	if (srcport) {
+		ret = setsockopt (sock, SOL_SOCKET, SO_REUSEADDR,
+				  &val, sizeof (val));
+		if (ret < 0) {
+			perror ("failed to set SO_REUSEADDR client  scoket");
+			return 0;
+		}
+
+		memset (&saddr, 0, sizeof (saddr));
+		saddr.sin_family = AF_INET;
+		saddr.sin_port = srcport;
+		saddr.sin_addr.s_addr = INADDR_ANY;
+
+		ret = bind (sock, (struct sockaddr *)&saddr, sizeof (saddr));
+		if (ret < 0) {
+			perror ("bind failed for client socket");
+			return 0;
+		}
+	}
+
 	memset (&saddr, 0, sizeof (saddr));
 	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons (port);
+	saddr.sin_port = htons (dstport);
 	saddr.sin_addr = dst;
 	
 	ret = connect (sock, (struct sockaddr *)&saddr, sizeof (saddr));
@@ -328,13 +354,18 @@ flow_dist_init_power (void)
 void *
 client_thread (void * param)
 {
-	int n, ret, fd, sknum = 0;
+	int n, ret, fd, port, sknum = 0;
 	char buf[9216];
 	unsigned long xmitted = 0;
 
 	/* create tcp client sockets for each flow */
 	for (sknum = 0; sknum < tcpgen.flow_num; sknum++) {
-		fd = tcp_client_socket (tcpgen.dst,TCPGEN_PORT);
+		if (!tcpgen.randomized)
+			port = 0;
+		else
+			port = RANDOM_PORT ();
+
+		fd = tcp_client_socket (tcpgen.dst,TCPGEN_PORT, port);
 		if (!fd)
 			goto err;
 
@@ -399,7 +430,7 @@ main (int argc, char ** argv)
 	tcpgen.flow_num = 1;
 	tcpgen.data_len = 984; /* 1024 byte packet excluding ether header */
 
-	while ((ch = getopt (argc, argv, "d:scn:t:x:i:l:m:v")) != -1) {
+	while ((ch = getopt (argc, argv, "d:scn:t:x:i:l:rm:v")) != -1) {
 		switch (ch) {
 		case 'd' :
 			ret = inet_pton (AF_INET, optarg, &tcpgen.dst);
@@ -442,6 +473,9 @@ main (int argc, char ** argv)
 			break;
 		case 'l' :
 			tcpgen.data_len = atoi (optarg);
+			break;
+		case 'r' :
+			tcpgen.randomized = 1;
 			break;
 		case 'm' :
 			seed = atoi (optarg);
