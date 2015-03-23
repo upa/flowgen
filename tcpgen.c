@@ -562,7 +562,7 @@ main (int argc, char ** argv)
 		srand (time (NULL));
 
 	if (d)
-		daemon (1, 1);
+		daemon (1, 0);
 
 	if (tcpgen.server_mode)
 		pthread_create (&tcpgen.server_t, NULL, server_thread, NULL);
