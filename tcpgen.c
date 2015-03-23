@@ -170,10 +170,22 @@ server_thread_per_sock (void * param)
 
 	int ret, sock = (*((int *) param));
 	char buf[9216];
+	struct pollfd x[1];
+
+	x[0].fd = sock;
+	x[0].events = POLLIN | POLLERR;
 
 	pthread_detach (pthread_self ());
 
 	while (1) {
+
+		poll (x, 1, -1);
+
+		if (x[0].revents & POLLERR) {
+			D ("close scoket for %d", sock);
+			break;
+		}
+
 		ret = read (sock, buf, sizeof (buf));
 		if (ret < 1) {
 			D ("close scoket for %d", sock);
