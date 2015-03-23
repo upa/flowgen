@@ -39,6 +39,7 @@ enum {
 
 struct tcpgen {
 	struct in_addr dst;	/* destination address */
+	struct in_addr src;	/* source address */
 
 	int server_sock;		/* server socket for accept */
 	int client_sock[MAX_FLOWNUM];	/* all client socket to send */
@@ -71,6 +72,7 @@ usage (void)
 	printf ("\n"
 		"usage: tcpgen\n"
 		"\t -d : destination IP address\n"
+		"\t -B : bind source IP address (default INADDR_ANY)\n"
 		"\t -s : server mode only\n"
 		"\t -c : client mode only\n"
 		"\t -n : number of flows\n"
@@ -90,7 +92,8 @@ usage (void)
 }
 
 int
-tcp_client_socket (struct in_addr dst, int dstport, int srcport)
+tcp_client_socket (struct in_addr dst, struct in_addr bind_addr,
+		   int dstport, int srcport)
 {
 	int sock, ret, val = 1;
 	struct sockaddr_in saddr;
@@ -101,24 +104,22 @@ tcp_client_socket (struct in_addr dst, int dstport, int srcport)
 		return 0;
 	}
 
-	if (srcport) {
-		ret = setsockopt (sock, SOL_SOCKET, SO_REUSEADDR,
-				  &val, sizeof (val));
-		if (ret < 0) {
-			perror ("failed to set SO_REUSEADDR client  scoket");
-			return 0;
-		}
+	ret = setsockopt (sock, SOL_SOCKET, SO_REUSEADDR,
+			  &val, sizeof (val));
+	if (ret < 0) {
+		perror ("failed to set SO_REUSEADDR client  scoket");
+		return 0;
+	}
 
-		memset (&saddr, 0, sizeof (saddr));
-		saddr.sin_family = AF_INET;
-		saddr.sin_port = srcport;
-		saddr.sin_addr.s_addr = INADDR_ANY;
+	memset (&saddr, 0, sizeof (saddr));
+	saddr.sin_family = AF_INET;
+	saddr.sin_port = srcport;
+	saddr.sin_addr = bind_addr;
 
-		ret = bind (sock, (struct sockaddr *)&saddr, sizeof (saddr));
-		if (ret < 0) {
-			perror ("bind failed for client socket");
-			return 0;
-		}
+	ret = bind (sock, (struct sockaddr *)&saddr, sizeof (saddr));
+	if (ret < 0) {
+		perror ("bind failed for client socket");
+		return 0;
 	}
 
 	memset (&saddr, 0, sizeof (saddr));
@@ -127,8 +128,10 @@ tcp_client_socket (struct in_addr dst, int dstport, int srcport)
 	saddr.sin_addr = dst;
 	
 	ret = connect (sock, (struct sockaddr *)&saddr, sizeof (saddr));
+
 	if (ret < 0) {
-		perror ("connect fialed");
+		D ("connect failed");
+		perror ("connect");
 		return 0;
 	}
 
@@ -419,6 +422,8 @@ client_thread (void * param)
 	char buf[9216];
 	unsigned long xmitted = 0;
 
+	D ("Start to connect");
+
 	/* create tcp client sockets for each flow */
 	for (sknum = 0; sknum < tcpgen.flow_num; sknum++) {
 		if (!tcpgen.randomized)
@@ -426,9 +431,12 @@ client_thread (void * param)
 		else
 			port = RANDOM_PORT ();
 
-		fd = tcp_client_socket (tcpgen.dst,TCPGEN_PORT, port);
-		if (!fd)
+		fd = tcp_client_socket (tcpgen.dst, tcpgen.src,
+					TCPGEN_PORT, port);
+
+		if (!fd) {
 			goto err;
+		}
 
 		tcpgen.client_sock[sknum] = fd;
 	}
@@ -491,12 +499,20 @@ main (int argc, char ** argv)
 	tcpgen.flow_num = 1;
 	tcpgen.data_len = 984; /* 1024 byte packet excluding ether header */
 
-	while ((ch = getopt (argc, argv, "d:scn:t:x:i:l:rm:pDv")) != -1) {
+	while ((ch = getopt (argc, argv, "d:B:scn:t:x:i:l:rm:pDv")) != -1) {
 		switch (ch) {
 		case 'd' :
 			ret = inet_pton (AF_INET, optarg, &tcpgen.dst);
 			if (ret < 0) {
 				D ("invalid dst address %s", optarg);
+				perror ("inet_pton");
+				return -1;
+			}
+			break;
+		case 'B' :
+			ret = inet_pton (AF_INET, optarg, &tcpgen.src);
+			if (ret < 0) {
+				D ("invalid src address %s", optarg);
 				perror ("inet_pton");
 				return -1;
 			}
@@ -565,13 +581,10 @@ main (int argc, char ** argv)
 		daemon (1, 0);
 
 	if (tcpgen.server_mode)
-		pthread_create (&tcpgen.server_t, NULL, server_thread, NULL);
+		server_thread (NULL);
 
-	if (tcpgen.client_mode)
-		pthread_create (&tcpgen.client_t, NULL, client_thread, NULL);
-
-	pthread_join (tcpgen.server_t, NULL);
-	pthread_join (tcpgen.client_t, NULL);
+	else if (tcpgen.client_mode)
+		client_thread (NULL);
 
 	D ("tcpgen finished");
 
