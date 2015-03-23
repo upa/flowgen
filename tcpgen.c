@@ -46,10 +46,10 @@ struct tcpgen {
 	int socklist[SOCKLISTLEN];	/* sock list to follow distribution */
 	int socklistlen;		/* len of filled socklist */
 
-	int flow_dist;	/* type of flow distribution */
-	int flow_num;	/* number of flows */
+	int flow_dist;		/* type of flow distribution */
+	int flow_num;		/* number of flows */
 	
-	int data_len;	/* data size to be written to tcp socket  */
+	int data_len;		/* data size to be written to tcp socket  */
 
 	int server_mode;	/* server mode */
 	int client_mode;	/* client mode */
@@ -57,10 +57,11 @@ struct tcpgen {
 	pthread_t server_t;	/* thread id for server */
 	pthread_t client_t;	/* thread id for client */
 
-	int count;	/* number of xmit packets */
-	int interval;	/* xmit interval */
-	int randomized;	/* randomise source port */
-	int verbose;	/* verbose mode */
+	int count;		/* number of xmit packets */
+	int interval;	       	/* xmit interval */
+	int randomized;		/* randomise source port */
+	int thread_mode;	/* create threads for each socket (server) */
+	int verbose;		/* verbose mode */
 } tcpgen;
 
 
@@ -79,6 +80,8 @@ usage (void)
 		"\t -l : data length (tcp payload)\n"
 		"\t -r : randomize source port\n"
 		"\t -m : digit for seed of srand\n"
+		"\t -p : pthread mode for each session (server mode)\n"
+		"\t -v : verbose mode\n"
 		"\n"
 		);
 
@@ -160,15 +163,44 @@ tcp_server_socket (int port)
 }
 
 void *
+server_thread_per_sock (void * param)
+{
+	/* a thread for a socket */
+
+	int ret, sock = (*((int *) param));
+	char buf[9216];
+
+	pthread_detach (pthread_self ());
+
+	while (1) {
+		ret = read (sock, buf, sizeof (buf));
+		if (ret < 1) {
+			D ("close scoket for %d", sock);
+			break;
+		}
+		if (tcpgen.verbose) {
+			D ("read %d bytes from socket %d", ret, sock);
+		}
+	}
+
+	close (sock);
+	return NULL;
+}
+
+void *
 server_thread (void * param)
 {
-	int n, ret, sknum = 1;
+	int n, ret, cfd, sknum = 1;
 	socklen_t len;
 	char buf[2048];
+	pthread_t tid;
 	struct sockaddr_in saddr;
 	struct pollfd x[MAX_FLOWNUM + 1];
 	
 	memset (x, 0, sizeof (x));
+
+	if (tcpgen.thread_mode)
+		D ("thread mode on");
 
 	tcpgen.server_sock = tcp_server_socket (TCPGEN_PORT);
 	if (!tcpgen.server_sock) {
@@ -203,21 +235,37 @@ server_thread (void * param)
 
 		if (x[0].revents & POLLIN) {
 			/* accept new socket */
-			x[sknum].fd = accept (tcpgen.server_sock,
-					      (struct sockaddr *)&saddr, &len);
-			x[sknum].events = POLLIN | POLLERR;
-			D ("new connection is stored to %d", sknum);
+
+			cfd = accept (tcpgen.server_sock,
+				      (struct sockaddr *)&saddr, &len);
+
+			if (tcpgen.thread_mode) {
+				pthread_create (&tid, NULL,
+						server_thread_per_sock, &cfd);
+				D ("new thread created for sock %d", cfd);
+			} else {
+				x[sknum].fd = cfd;
+				x[sknum].events = POLLIN | POLLERR;
+				D ("new connection is stored to %d", sknum);
+			}
 			sknum++;
 			x[0].revents = 0;
 		}
 	}
 
 err:
-	for (n = 0; n < sknum; n++)
-		close (x[n].fd);
+	if (!tcpgen.thread_mode) {
+		for (n = 0; n < MAX_FLOWNUM + 1; n++) {
+			if (x[n].fd != 0)
+				close (x[n].fd);
+		}
+	}
+
+	close (tcpgen.server_sock);
 
 	return NULL;
 }
+
 
 void
 flow_dist_init_same (void)
@@ -430,7 +478,7 @@ main (int argc, char ** argv)
 	tcpgen.flow_num = 1;
 	tcpgen.data_len = 984; /* 1024 byte packet excluding ether header */
 
-	while ((ch = getopt (argc, argv, "d:scn:t:x:i:l:rm:v")) != -1) {
+	while ((ch = getopt (argc, argv, "d:scn:t:x:i:l:rm:pv")) != -1) {
 		switch (ch) {
 		case 'd' :
 			ret = inet_pton (AF_INET, optarg, &tcpgen.dst);
@@ -479,6 +527,9 @@ main (int argc, char ** argv)
 			break;
 		case 'm' :
 			seed = atoi (optarg);
+			break;
+		case 'p' :
+			tcpgen.thread_mode = 1;
 			break;
 		case 'v' :
 			tcpgen.verbose = 1;
