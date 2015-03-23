@@ -81,6 +81,7 @@ usage (void)
 		"\t -r : randomize source port\n"
 		"\t -m : digit for seed of srand\n"
 		"\t -p : pthread mode for each session (server mode)\n"
+		"\t -D : daemon mode\n"
 		"\t -v : verbose mode\n"
 		"\n"
 		);
@@ -470,7 +471,7 @@ err:
 int
 main (int argc, char ** argv)
 {
-	int ch, ret, seed = 0;
+	int ch, ret, seed = 0, d = 0;
 
 	/* set default value */
 	memset (&tcpgen, 0, sizeof (tcpgen));
@@ -478,7 +479,7 @@ main (int argc, char ** argv)
 	tcpgen.flow_num = 1;
 	tcpgen.data_len = 984; /* 1024 byte packet excluding ether header */
 
-	while ((ch = getopt (argc, argv, "d:scn:t:x:i:l:rm:pv")) != -1) {
+	while ((ch = getopt (argc, argv, "d:scn:t:x:i:l:rm:pDv")) != -1) {
 		switch (ch) {
 		case 'd' :
 			ret = inet_pton (AF_INET, optarg, &tcpgen.dst);
@@ -531,6 +532,9 @@ main (int argc, char ** argv)
 		case 'p' :
 			tcpgen.thread_mode = 1;
 			break;
+		case 'D' :
+			d = 1;
+			break;
 		case 'v' :
 			tcpgen.verbose = 1;
 			break;
@@ -544,6 +548,9 @@ main (int argc, char ** argv)
 		srand (seed);
 	else
 		srand (time (NULL));
+
+	if (d)
+		daemon (1, 1);
 
 	if (tcpgen.server_mode)
 		pthread_create (&tcpgen.server_t, NULL, server_thread, NULL);
