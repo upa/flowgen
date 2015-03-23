@@ -323,7 +323,7 @@ flow_dist_init_power (void)
 	float sum = 0;
 	for (n = 0; n < tcpgen.flow_num; n++) {
 		flows[n].fd = tcpgen.client_sock[n];
-		flows[n].throughput = POWERLAW (n);
+		flows[n].throughput = POWERLAW (n + 1);
 		sum += flows[n].throughput;
 	}
 
@@ -337,7 +337,7 @@ flow_dist_init_power (void)
 
 	int ssum = 0, slen = 0;
 	for (n = 0; n < tcpgen.flow_num; n++) {
-		D ("Flow %3d ratio is %f%%", n,
+		D ("Flow %3d ratio is %.2f%%", n,
 		   flows[n].ratio / SOCKLISTLEN * 100);
 		ssum += flows[n].ratio / SOCKLISTLEN * 100;
 
