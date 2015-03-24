@@ -113,7 +113,7 @@ tcp_client_socket (struct in_addr dst, struct in_addr bind_addr,
 
 	memset (&saddr, 0, sizeof (saddr));
 	saddr.sin_family = AF_INET;
-	saddr.sin_port = srcport;
+	saddr.sin_port = htons (srcport);
 	saddr.sin_addr = bind_addr;
 
 	ret = bind (sock, (struct sockaddr *)&saddr, sizeof (saddr));
