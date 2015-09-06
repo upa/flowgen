@@ -64,7 +64,7 @@ void (* flowgen_flow_dist_init[]) (void) = {
 #define DEFAULT_DSTADDR		"10.2.0.10"
 #define DEFAULT_FLOWNUM		10
 #define DEFAULT_FLOWDIST	FLOWDIST_SAME
-#define DEFAULT_PACKETLEN	1024
+#define DEFAULT_PACKETLEN	1010
 
 
 struct flowgen {
@@ -146,7 +146,7 @@ usage (char * progname)
 		"\t" "-n : Number of flows (default 10)\n"
 		"\t" "-t : Type of flow distribution {same|random|power}"
 		" (default same)\n"
-		"\t" "-l : Packet size (defualt 1024)\n"
+		"\t" "-l : Packet size (excluding ether header 14byte)\n"
 		"\t" "-m : Seed of srand\n"
 		"\t" "-f : daemon mode\n"
 		"\t" "-r : Randomize source ports of each flows\n"
@@ -633,8 +633,8 @@ main (int argc, char ** argv)
 			break;
 		case 'l' :
 			ret = atoi (optarg);
-			if (ret < 64 || PACKETMAXLEN < ret) {
-				D ("packet len muse be larger than 64 "
+			if (ret < 50 || PACKETMAXLEN < ret) {
+				D ("packet len muse be larger than 49 "
 				    " and smaller than %d", PACKETMAXLEN + 1);
 				exit (1);
 			}
