@@ -31,12 +31,15 @@ make DCE=yes is defined for ns-3-dce use.
 	 	-d : Destination IP address (default 10.2.0.10)
 	 	-n : Number of flows (default 10)
 	 	-t : Type of flow distribution {same|random|power} (default same)
-	 	-l : Packet size (defualt 1024)
+	 	-l : Packet size (excluding ether header 14byte)
+	 	-i : packet send interval (micro second)
+	 	-m : Seed of srand
 	 	-f : daemon mode
 	 	-r : Randomize source ports of each flows
-		-c : Number of xmit packets (defualt unlimited)
-		-e : Receive mode
-		-w : Run WITH receive thread
+	 	-c : Number of xmit packets (defualt unlimited)
+	 	-e : Receive mode
+	 	-u : using UDP socket instead of raw socket
+	 	-w : Run WITH receive thread
 
 	 % sudo ./flowgen
 	 

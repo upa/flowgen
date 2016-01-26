@@ -147,6 +147,7 @@ usage (char * progname)
 		"\t" "-t : Type of flow distribution {same|random|power}"
 		" (default same)\n"
 		"\t" "-l : Packet size (excluding ether header 14byte)\n"
+		"\t" "-i : packet send interval (micro second)\n"
 		"\t" "-m : Seed of srand\n"
 		"\t" "-f : daemon mode\n"
 		"\t" "-r : Randomize source ports of each flows\n"
